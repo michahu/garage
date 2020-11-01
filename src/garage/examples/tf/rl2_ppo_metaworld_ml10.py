@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Example script to run RL2 in ML1."""
+"""Example script to run RL2 in ML10."""
 # pylint: disable=no-value-for-parameter
 # yapf: disable
 import click
@@ -7,8 +7,7 @@ import metaworld
 
 from garage import wrap_experiment
 from garage.envs import MetaWorldSetTaskEnv
-from garage.experiment import (MetaEvaluator,
-                               MetaWorldTaskSampler,
+from garage.experiment import (MetaEvaluator, MetaWorldTaskSampler,
                                SetTaskSampler)
 from garage.experiment.deterministic import set_seed
 from garage.np.baselines import LinearFeatureBaseline
@@ -27,13 +26,13 @@ from garage.trainer import TFTrainer
 @click.option('--n_epochs', default=10)
 @click.option('--episode_per_task', default=10)
 @wrap_experiment
-def rl2_ppo_metaworld_ml1_push(ctxt, seed, meta_batch_size, n_epochs,
-                               episode_per_task):
-    """Train RL2 PPO with ML1 environment.
+def rl2_ppo_metaworld_ml10(ctxt, seed, meta_batch_size, n_epochs,
+                           episode_per_task):
+    """Train RL2 PPO with ML10 environment.
 
     Args:
-        ctxt (ExperimentContext): The experiment configuration used by
-            :class:`~Trainer` to create the :class:`~Snapshotter`.
+        ctxt (garage.experiment.ExperimentContext): The experiment
+            configuration used by Trainer to create the snapshotter.
         seed (int): Used to seed the random number generator to produce
             determinism.
         meta_batch_size (int): Meta batch size.
@@ -42,28 +41,28 @@ def rl2_ppo_metaworld_ml1_push(ctxt, seed, meta_batch_size, n_epochs,
 
     """
     set_seed(seed)
-    ml1 = metaworld.ML1('push-v1')
-
-    task_sampler = MetaWorldTaskSampler(ml1, 'train',
-                                        lambda env, _: RL2Env(env))
-    env = task_sampler.sample(1)[0]()
-    test_task_sampler = SetTaskSampler(MetaWorldSetTaskEnv,
-                                       env=MetaWorldSetTaskEnv(ml1, 'test'),
-                                       wrapper=lambda env, _: RL2Env(env))
-    env_spec = env.spec
-
     with TFTrainer(snapshot_config=ctxt) as trainer:
+        ml10 = metaworld.ML10()
+        tasks = MetaWorldTaskSampler(ml10, 'train', lambda env, _: RL2Env(env))
+        test_task_sampler = SetTaskSampler(MetaWorldSetTaskEnv,
+                                           env=MetaWorldSetTaskEnv(
+                                               ml10, 'test'),
+                                           wrapper=lambda env, _: RL2Env(env))
+        meta_evaluator = MetaEvaluator(test_task_sampler=test_task_sampler)
+
+        env_updates = tasks.sample(10)
+        env = env_updates[0]()
+
+        env_spec = env.spec
         policy = GaussianGRUPolicy(name='policy',
                                    hidden_dim=64,
                                    env_spec=env_spec,
                                    state_include_action=False)
 
-        meta_evaluator = MetaEvaluator(test_task_sampler=test_task_sampler)
-
         baseline = LinearFeatureBaseline(env_spec=env_spec)
 
         algo = RL2PPO(meta_batch_size=meta_batch_size,
-                      task_sampler=task_sampler,
+                      task_sampler=tasks,
                       env_spec=env_spec,
                       policy=policy,
                       baseline=baseline,
@@ -80,7 +79,7 @@ def rl2_ppo_metaworld_ml1_push(ctxt, seed, meta_batch_size, n_epochs,
                       episodes_per_trial=episode_per_task)
 
         trainer.setup(algo,
-                      task_sampler.sample(meta_batch_size),
+                      tasks.sample(meta_batch_size),
                       sampler_cls=LocalSampler,
                       n_workers=meta_batch_size,
                       worker_class=RL2Worker,
@@ -91,4 +90,4 @@ def rl2_ppo_metaworld_ml1_push(ctxt, seed, meta_batch_size, n_epochs,
                       env_spec.max_episode_length * meta_batch_size)
 
 
-rl2_ppo_metaworld_ml1_push()
+rl2_ppo_metaworld_ml10()
