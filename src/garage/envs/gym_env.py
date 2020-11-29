@@ -229,6 +229,7 @@ class GymEnv(Environment):
             step_cnt=self._step_cnt,
             max_episode_length=self._max_episode_length,
             done=done)
+        # print(f'step type {step_type}, obs {observation}')
 
         # gym envs that are wrapped in TimeLimit wrapper modify
         # the done/termination signal to be true whenever a time
@@ -253,6 +254,7 @@ class GymEnv(Environment):
         if not self._env_info:
             self._env_info = {k: type(info[k]) for k in info}
         elif self._env_info.keys() != info.keys():
+            # print(self._env_info.keys(), info.keys())
             raise RuntimeError('GymEnv outputs inconsistent env_info keys.')
         if not self.spec.observation_space.contains(observation):
             # Discrete actions can be either in the space normally, or one-hot

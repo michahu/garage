@@ -58,6 +58,7 @@ class WorkerFactory:
             self._worker_args = {}
         else:
             self._worker_args = worker_args
+        # print(self._worker_args)
 
     def prepare_worker_messages(self, objs, preprocess=identity_function):
         """Take an argument and canonicalize it into a list for all workers.

@@ -122,6 +122,7 @@ class DefaultWorker(Worker):
         return True
 
     def collect_episode(self):
+        # print('called')
         """Collect the current episode, clearing the internal buffer.
 
         Returns:
@@ -162,6 +163,7 @@ class DefaultWorker(Worker):
 
         lengths = self._lengths
         self._lengths = []
+        # print(f'OBSERVATIONS {len(observations)}, LAST OBSERVATIONS: {len(last_observations)}')
         return EpisodeBatch(env_spec=self.env.spec,
                             episode_infos=episode_infos,
                             observations=np.asarray(observations),

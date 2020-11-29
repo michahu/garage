@@ -5,6 +5,7 @@ Learning). The paper on PEARL can be found at https://arxiv.org/abs/1903.08254.
 Code is adapted from https://github.com/katerakelly/oyster.
 """
 
+from typing import Tuple
 import numpy as np
 import torch
 from torch import nn
@@ -101,12 +102,13 @@ class ContextConditionedPolicy(nn.Module):
         """
         o = torch.as_tensor(timestep.observation[None, None, ...],
                             device=global_device()).float()
-        a = torch.as_tensor(timestep.action[None, None, ...],
+        a = torch.as_tensor(timestep.action.reshape(1, 1, -1),
                             device=global_device()).float()
         r = torch.as_tensor(np.array([timestep.reward])[None, None, ...],
                             device=global_device()).float()
         no = torch.as_tensor(timestep.next_observation[None, None, ...],
                              device=global_device()).float()
+        # print(o.shape, a.shape, r.shape)
 
         if self._use_next_obs:
             data = torch.cat([o, a, r, no], dim=2)
@@ -185,13 +187,18 @@ class ContextConditionedPolicy(nn.Module):
         # run policy, get log probs and new actions
         obs_z = torch.cat([obs, task_z.detach()], dim=1)
         dist = self._policy(obs_z)[0]
-        pre_tanh, actions = dist.rsample_with_pre_tanh_value()
-        log_pi = dist.log_prob(value=actions, pre_tanh_value=pre_tanh)
-        log_pi = log_pi.unsqueeze(1)
-        mean = dist.mean.to('cpu').detach().numpy()
-        log_std = (dist.variance**.5).log().to('cpu').detach().numpy()
+        # pre_tanh, actions = dist.rsample_with_pre_tanh_value()
+        # log_pi = dist.log_prob(value=actions, pre_tanh_value=pre_tanh)
+        # log_pi = log_pi.unsqueeze(1)
+        # mean = dist.mean.to('cpu').detach().numpy()
+        # log_std = (dist.variance**.5).log().to('cpu').detach().numpy()
+        actions = dist.sample()
+        mean = np.zeros(actions.shape)
+        log_std = np.zeros(actions.shape)
+        log_pi = dist.log_prob(actions).reshape(-1, 1)
+        pre_tanh = np.zeros(actions.shape)
 
-        return (actions, mean, log_std, log_pi, pre_tanh), task_z
+        return (actions.float().reshape(-1, 1), mean, log_std, log_pi, pre_tanh), task_z
 
     def get_action(self, obs):
         """Sample action from the policy, conditioned on the task embedding.
@@ -210,7 +217,10 @@ class ContextConditionedPolicy(nn.Module):
 
         """
         z = self.z
+        # if isinstance(obs, Tuple):
+        #     print(obs)
         obs = torch.as_tensor(obs[None], device=global_device()).float()
+        # obs = torch.flatten(obs, start_dim=1)
         obs_in = torch.cat([obs, z], dim=1)
         action, info = self._policy.get_action(obs_in)
         return action, info

@@ -1013,11 +1013,16 @@ def check_timestep_batch(batch, array_type, ignored_fields=()):
     fields = {
         field: getattr(batch, field)
         for field in [
-            'env_spec', 'rewards', 'rewards', 'observations', 'actions',
+            'env_spec', 'rewards', 'observations', 'actions',
             'next_observations', 'step_types', 'agent_infos', 'episode_infos',
             'env_infos'
         ] if field not in ignored_fields
     }
+    # print(f"REWARDS SHAPE: {fields['rewards'].shape}")
+    # print(f"OBS SHAPE: {fields['observations'].shape}")
+
+    # print(f"ACTIONS SHAPE: {fields['actions'].shape}")
+    # print(fields['agent_infos']['context'].shape)
     env_spec = fields.get('env_spec', None)
     inferred_batch_size = None
     inferred_batch_size_field = None
@@ -1038,6 +1043,7 @@ def check_timestep_batch(batch, array_type, ignored_fields=()):
                     f'must have batch size {inferred_batch_size} '
                     f'to match {inferred_batch_size_field}')
             if env_spec and field in ['observations', 'next_observations']:
+                # print(field, value, value.shape)
                 if not _space_soft_contains(env_spec.observation_space,
                                             value[0]):
                     raise ValueError(

@@ -46,11 +46,14 @@ class PathBuffer:
                 step_type == StepType.TERMINAL for step_type in eps.step_types
             ],
                                  dtype=bool)
+            # print(eps.actions.shape)
+            # print(eps.actions.reshape(-1, 1).shape)
             path = {
                 'observations': obs_space.flatten_n(eps.observations),
                 'next_observations':
                 obs_space.flatten_n(eps.next_observations),
                 'actions': env_spec.action_space.flatten_n(eps.actions),
+                # 'actions': eps.actions.reshape(-1, 1),
                 'rewards': eps.rewards.reshape(-1, 1),
                 'terminals': terminals.reshape(-1, 1),
             }
@@ -84,6 +87,7 @@ class PathBuffer:
             self._path_segments.popleft()
         self._path_segments.append((first_seg, second_seg))
         for key, array in path.items():
+            # print(key, array.shape)
             buf_arr = self._get_or_allocate_key(key, array)
             # numpy doesn't special case range indexing, so it's very slow.
             # Slice manually instead, which is faster than any other method.

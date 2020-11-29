@@ -162,8 +162,9 @@ class PEARL(MetaRLAlgorithm):
         self._update_post_train = update_post_train
         self._task_idx = None
         self._single_env = env[0]()
+        # print(self._single_env)
         self.max_episode_length = self._single_env.spec.max_episode_length
-
+        # self.max_episode_length = 200
         self._is_resuming = False
 
         if num_test_tasks is None:
@@ -372,6 +373,7 @@ class PEARL(MetaRLAlgorithm):
         self.qf2_optimizer.step()
         self.context_optimizer.step()
 
+        # print(obs.type(), new_actions.type())
         # compute min Q on the new actions
         q1 = self._qf1(torch.cat([obs, new_actions], dim=1), task_z.detach())
         q2 = self._qf2(torch.cat([obs, new_actions], dim=1), task_z.detach())
@@ -379,6 +381,7 @@ class PEARL(MetaRLAlgorithm):
 
         # optimize vf
         v_target = min_q - log_pi
+        # print(v_pred.shape, v_target.shape, min_q.shape, log_pi.shape)
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
@@ -391,9 +394,10 @@ class PEARL(MetaRLAlgorithm):
 
         mean_reg_loss = self._policy_mean_reg_coeff * (policy_mean**2).mean()
         std_reg_loss = self._policy_std_reg_coeff * (policy_log_std**2).mean()
-        pre_tanh_value = policy_outputs[-1]
-        pre_activation_reg_loss = self._policy_pre_activation_coeff * (
-            (pre_tanh_value**2).sum(dim=1).mean())
+        # pre_tanh_value = policy_outputs[-1]
+        # pre_activation_reg_loss = self._policy_pre_activation_coeff * (
+        #     (pre_tanh_value**2).sum(dim=1).mean())
+        pre_activation_reg_loss = 0
         policy_reg_loss = (mean_reg_loss + std_reg_loss +
                            pre_activation_reg_loss)
         policy_loss = policy_loss + policy_reg_loss
@@ -440,7 +444,7 @@ class PEARL(MetaRLAlgorithm):
                     'observations':
                     path['observations'],
                     'actions':
-                    path['actions'],
+                    path['actions'].reshape(-1, 1),
                     'rewards':
                     path['rewards'].reshape(-1, 1),
                     'next_observations':
@@ -607,7 +611,7 @@ class PEARL(MetaRLAlgorithm):
         """
         total_steps = sum(exploration_episodes.lengths)
         o = exploration_episodes.observations
-        a = exploration_episodes.actions
+        a = exploration_episodes.actions.reshape(total_steps, 1)
         r = exploration_episodes.rewards.reshape(total_steps, 1)
         ctxt = np.hstack((o, a, r)).reshape(1, total_steps, -1)
         context = torch.as_tensor(ctxt, device=global_device()).float()
@@ -638,6 +642,7 @@ class PEARL(MetaRLAlgorithm):
             EnvSpec: Augmented environment specs.
 
         """
+        # print(env_spec, env_spec.observation_space)
         obs_dim = int(np.prod(env_spec.observation_space.shape))
         action_dim = int(np.prod(env_spec.action_space.shape))
         aug_obs = akro.Box(low=-1,
@@ -735,14 +740,17 @@ class PEARLWorker(DefaultWorker):
 
         """
         if self._eps_length < self._max_episode_length:
+            # print(self._prev_obs.shape)
             a, agent_info = self.agent.get_action(self._prev_obs)
-            if self._deterministic:
-                a = agent_info['mean']
+            # if self._deterministic:
+            #     a = agent_info['mean']
             a, agent_info = self.agent.get_action(self._prev_obs)
+            # print(a)
             es = self.env.step(a)
             self._observations.append(self._prev_obs)
             self._env_steps.append(es)
             for k, v in agent_info.items():
+                # print(k, v)
                 self._agent_infos[k].append(v)
             self._eps_length += 1
 
